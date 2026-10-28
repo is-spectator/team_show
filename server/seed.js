@@ -1,8 +1,6 @@
 // 示例数据：数据库为空时写入，方便第一次打开就能看到完整效果。
 // 设置环境变量 SEED=false 可以从空库开始。
-import { readFileSync } from 'node:fs';
-
-const example = JSON.parse(readFileSync(new URL('../docs/fishbone.example.json', import.meta.url), 'utf8'));
+import example from '../docs/fishbone.example.json' with { type: 'json' };
 
 const ms = (id, title, planned_date, status, owner, extra = {}) => ({
   id, title, planned_date, status, owner, summary: '', side: 'auto', attachments: [],

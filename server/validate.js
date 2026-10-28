@@ -1,6 +1,7 @@
 // 数据校验：鱼骨图用 shared/fishbone.schema.json，成员和文档用简单规则。
 import Ajv2020 from 'ajv/dist/2020.js';
 import { readFileSync } from 'node:fs';
+import { ValidationError } from './normalize.js';
 
 const schema = JSON.parse(readFileSync(new URL('../shared/fishbone.schema.json', import.meta.url), 'utf8'));
 const ajv = new Ajv2020({ allErrors: false, strict: false });
@@ -12,11 +13,7 @@ const checkProject = ref('project');
 const checkMilestone = ref('milestone');
 const checkUpdate = ref('update');
 
-export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-export class ValidationError extends Error {
-  status = 400;
-}
+export { ValidationError };
 
 function explain(fn, prefix) {
   const e = fn.errors?.[0];

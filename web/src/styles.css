@@ -231,3 +231,7 @@ textarea.code { width: 100%; height: 400px; font-family: ui-monospace, SFMono-Re
 .feed-day { font-size: 12px; font-weight: 600; color: var(--muted); padding: 14px 0 4px; }
 .feed-i { display: flex; gap: 12px; padding: 10px 0 12px; border-bottom: 1px solid var(--line2); }
 .feed-risk { margin-top: 6px; padding: 6px 10px; border-radius: 6px; background: #FFF7ED; color: #8A4504; line-height: 1.6; }
+
+/* 预览版提示条 */
+.demo-bar { background: #FFF7ED; color: #8A4504; font-size: 13px; padding: 6px 16px; text-align: center; border-bottom: 1px solid #FBD9B4; }
+.demo-bar .link { color: #8A4504; text-decoration: underline; }

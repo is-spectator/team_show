@@ -43,6 +43,12 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 const enc = encodeURIComponent;
 
+let exportUrl = (id: string, format: 'json' | 'yaml') => `/api/projects/${enc(id)}/export?format=${format}`;
+/** 预览版没有服务器，用它换成浏览器里生成的下载链接 */
+export function setExportUrl(fn: typeof exportUrl) {
+  exportUrl = fn;
+}
+
 export const api = {
   bootstrap: () => call<Bootstrap>('GET', '/bootstrap'),
   login: (password: string) => call<{ ok: true }>('POST', '/auth', { password }),
@@ -53,7 +59,7 @@ export const api = {
   replaceProject: (id: string, text: string) => call<Fishbone>('PUT', `/projects/${enc(id)}`, { text }),
   patchProject: (id: string, info: Partial<ProjectInfo>) => call<Fishbone>('PATCH', `/projects/${enc(id)}/info`, info),
   deleteProject: (id: string) => call('DELETE', `/projects/${enc(id)}`),
-  exportUrl: (id: string, format: 'json' | 'yaml') => `/api/projects/${enc(id)}/export?format=${format}`,
+  exportUrl: (id: string, format: 'json' | 'yaml') => exportUrl(id, format),
 
   addMilestone: (pid: string, m: Partial<Milestone>) => call<Milestone>('POST', `/projects/${enc(pid)}/milestones`, m),
   saveMilestone: (pid: string, m: Milestone) => call<Milestone>('PUT', `/projects/${enc(pid)}/milestones/${enc(m.id)}`, m),

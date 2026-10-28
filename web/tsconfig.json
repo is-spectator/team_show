@@ -10,7 +10,10 @@
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "paths": { "@demo-boot": ["./src/demo/noop.ts"] }
   },
   "include": ["src"]
 }
