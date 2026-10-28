@@ -11,11 +11,33 @@ import type { Project } from '../types';
 type Filter = 'all' | 'active' | 'attention' | 'done';
 const FILTERS: [Filter, string][] = [['all', '全部'], ['active', '进行中'], ['attention', '需要关注'], ['done', '已交付']];
 const attention = (p: Project) => p.status === 'at_risk' || p.status === 'delayed';
+const VIEW_KEY = 'team-show:view';
+const loadView = () => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'sample';
+  } catch {
+    return false;
+  }
+};
 const match = (p: Project, f: Filter) => (f === 'all' ? true : f === 'active' ? p.status !== 'done' : f === 'attention' ? attention(p) : p.status === 'done');
 
 export function Home() {
-  const { projects, canEdit, importProject } = useData();
+  const { projects: all, canEdit, importProject } = useData();
   const [f, setF] = useState<Filter>('all');
+  // 示例项目单独放，切换后记在浏览器里，从项目页返回时还在同一边
+  const [sample, setSample] = useState(loadView);
+  const hasSample = all.some((p) => p.sample);
+  const showSample = sample && hasSample;
+  const projects = all.filter((p) => !!p.sample === showSample);
+  const pickView = (v: boolean) => {
+    setSample(v);
+    setF('all');
+    try {
+      localStorage.setItem(VIEW_KEY, v ? 'sample' : 'real');
+    } catch {
+      /* 隐私模式下忽略 */
+    }
+  };
   const [importing, setImporting] = useState(false);
   const nav = useNavigate();
   const now = today();
@@ -42,13 +64,22 @@ export function Home() {
       </section>
 
       <div className="stack20">
-        <div className="chips" role="group" aria-label="按状态筛选">
-          {FILTERS.map(([k, label]) => (
-            <button key={k} type="button" className="chip" aria-pressed={f === k} onClick={() => setF(k)}>
-              {label}<span className="mono n">{n(k)}</span>
-            </button>
-          ))}
+        <div className="filter-bar">
+          <div className="chips" role="group" aria-label="按状态筛选">
+            {FILTERS.map(([k, label]) => (
+              <button key={k} type="button" className="chip" aria-pressed={f === k} onClick={() => setF(k)}>
+                {label}<span className="mono n">{n(k)}</span>
+              </button>
+            ))}
+          </div>
+          {hasSample && (
+            <div className="seg" role="group" aria-label="切换真实项目和示例项目">
+              <button type="button" aria-pressed={!showSample} onClick={() => pickView(false)}>真实项目</button>
+              <button type="button" aria-pressed={showSample} onClick={() => pickView(true)}>示例项目</button>
+            </div>
+          )}
         </div>
+        {showSample && <p className="muted">示例项目用来演示鱼骨图的各种状态，不是团队的真实项目。</p>}
         {shown.length ? (
           <div className="cards">
             {shown.map((p) => <Card key={p.id} p={p} now={now} />)}
@@ -66,9 +97,18 @@ export function Home() {
       {importing && (
         <ImportDialog
           onClose={() => setImporting(false)}
-          onImport={async (text) => {
-            const p = await importProject(text);
-            nav('/p/' + encodeURIComponent(p.id));
+          onImport={async (texts) => {
+            const created: Project[] = [];
+            for (const [k, t] of texts.entries()) {
+              try {
+                created.push(await importProject(t));
+              } catch (e) {
+                throw texts.length > 1 ? new Error('第 ' + (k + 1) + ' 个项目：' + (e as Error).message) : e;
+              }
+            }
+            pickView(created.every((p) => p.sample));
+            if (created.length === 1) nav('/p/' + encodeURIComponent(created[0].id));
+            else setImporting(false);
           }}
         />
       )}

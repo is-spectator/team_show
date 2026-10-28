@@ -3,10 +3,24 @@ import { fishLook } from '../lib/fish';
 import { byDate, days, md, ms } from '../lib/date';
 import type { Item, Project } from '../types';
 
-// 画布 1040×440：鱼尾在 X0，鱼头在 X1，主干在 Y。鱼骨向左斜 32°，上下交替，三种长度轮换避免卡片挤在一起。
-const W = 1040, H = 440, X0 = 72, X1 = 932, Y = 230;
+// 画布 1080×440：鱼尾在 X0，鱼头在 X1，主干在 Y。鱼骨向左斜 32°，卡片按顺序摆放，撞到已有卡片就换长度或换一侧。
+const W = 1080, H = 440, X0 = 72, X1 = 932, Y = 230;
 const SIN = Math.sin((32 * Math.PI) / 180), COS = Math.cos((32 * Math.PI) / 180);
-const LENGTHS = [90, 165, 128];
+// 鱼骨长度候选：先用短的，和已经摆好的卡片撞了就换长一点，或者换到另一侧
+const LENGTHS = { up: [90, 128, 165, 200], down: [90, 128, 165, 180] };
+const LABEL_H = 50;
+// 鱼头下方「交付 + 目标」的中心
+const GOAL_X = X1 + 52;
+
+type Rect = { l: number; r: number; t: number; b: number };
+const overlap = (a: Rect, b: Rect) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+
+/** 估算卡片宽度：和样式里的 min-width / max-width 一致 */
+function labelWidth(it: Item) {
+  const chars = [...it.title].reduce((n, ch) => n + (/[\x00-\xff]/.test(ch) ? 0.55 : 1), 0);
+  const min = it.type === 'milestone' ? 140 : 124;
+  return Math.max(min, Math.min(190, Math.ceil(chars * 13 + 22)));
+}
 
 interface Props {
   p: Project;
@@ -22,19 +36,36 @@ export function BigFish({ p, today, selId, newId, onPick, onGoal }: Props) {
   const total = ms(p.end) - ms(p.start) || 1;
   const pos = (d: string) => Math.round(X0 + Math.max(0, Math.min(1, (ms(d) - ms(p.start)) / total)) * (X1 - X0));
   const items = p.items.slice().sort(byDate);
-  const used = { up: 0, down: 0 };
+  const nowX = p.status === 'done' ? X1 : pos(today);
+
+  // 依次摆放每根鱼骨的卡片，尽量不和已有的卡片、顶部的「今天」标签重叠
+  const placed: Rect[] = [{ l: nowX - 50, r: nowX + 50, t: 14, b: 46 }, { l: GOAL_X - 90, r: GOAL_X + 90, t: 296, b: 344 }];
+  const layout = (it: Item, x: number, up: boolean, h: number) => {
+    const tx = Math.round(x - h * SIN), ty = Math.round(Y + (up ? -h * COS : h * COS));
+    const w = labelWidth(it), cx = Math.max(70, Math.min(960, tx));
+    const rect = up ? { l: cx - w / 2, r: cx + w / 2, t: ty - 8 - LABEL_H, b: ty - 8 } : { l: cx - w / 2, r: cx + w / 2, t: ty + 8, b: ty + 8 + LABEL_H };
+    const pad = { l: rect.l - 6, r: rect.r + 6, t: rect.t - 4, b: rect.b + 4 };
+    return { up, h, tx, ty, rect, cost: placed.reduce((n, o) => n + overlap(pad, o), 0) };
+  };
 
   const bones = items.map((it, k) => {
-    const up = k % 2 === 0;
-    const h = LENGTHS[used[up ? 'up' : 'down']++ % 3];
     const x = pos(it.date);
-    const tx = Math.round(x - h * SIN), ty = Math.round(Y + (up ? -h * COS : h * COS));
+    const first = k % 2 === 0;
+    let best: ReturnType<typeof layout> | null = null;
+    for (const up of [first, !first]) {
+      for (const h of LENGTHS[up ? 'up' : 'down']) {
+        const c = layout(it, x, up, h);
+        if (!best || c.cost < best.cost) best = c;
+        if (c.cost === 0) break;
+      }
+      if (best && best.cost === 0) break;
+    }
+    const { up, h, tx, ty, rect } = best!;
+    placed.push(rect);
     const cx = Math.round(x - h * SIN * 0.25), cy = Math.round(Y + (up ? -h * COS * 0.75 : h * COS * 0.75));
     const isMs = it.type === 'milestone';
     return { it, up, x, tx, ty, d: `M${x} ${Y} Q${cx} ${cy} ${tx} ${ty}`, isMs, future: it.date > today };
   });
-
-  const nowX = p.status === 'done' ? X1 : pos(today);
 
   // 月份刻度：跨度越长间隔越大
   const ticks: { x: number; label: string }[] = [];
@@ -83,7 +114,7 @@ export function BigFish({ p, today, selId, newId, onPick, onGoal }: Props) {
           <span key={t.label + t.x} className="tick" style={{ left: t.x }}>{t.label}</span>
         ))}
 
-        <button type="button" className="goal" onClick={onGoal} style={{ left: X1 - 12 }}>
+        <button type="button" className="goal" onClick={onGoal} style={{ left: GOAL_X }}>
           <span className="goal-date">{md(p.end)} 交付</span>
           <span className="goal-title">{p.goal || '项目目标'}</span>
         </button>

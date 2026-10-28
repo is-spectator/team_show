@@ -97,6 +97,8 @@ export function normalizeProject(raw, index = 0) {
     rider,
     goal: text(raw.goal) || '项目目标',
     goal_detail: text(raw.goal_detail),
+    // 示例项目只在首页切到「示例项目」时显示
+    sample: raw.sample === true,
     items
   };
 }
@@ -117,6 +119,7 @@ export function exportObject(p) {
   return {
     name: p.name, owner: p.owner, members: p.members, start: p.start, end: p.end, status: p.status,
     fish: p.fish, rider: p.rider, goal: p.goal, goal_detail: p.goal_detail,
+    ...(p.sample ? { sample: true } : {}),
     items: p.items.slice().sort(byDate).map((it) => {
       const o = { type: it.type, date: it.date, title: it.title, author: it.author, text: it.text };
       return it.links.length ? { ...o, links: it.links.map((l) => ({ title: l.title, url: l.url })) } : o;
@@ -142,6 +145,7 @@ export function toYaml(p) {
     'rider: ' + o.rider,
     'goal: ' + q(o.goal),
     'goal_detail: ' + q(o.goal_detail),
+    ...(o.sample ? ['sample: true'] : []),
     o.items.length ? 'items:' : 'items: []'
   ];
   for (const it of o.items) {

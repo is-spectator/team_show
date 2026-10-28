@@ -29,6 +29,8 @@ export interface Project {
   rider: string;
   goal: string;
   goal_detail: string;
+  /** 示例项目：首页切到「示例项目」才显示 */
+  sample: boolean;
   items: Item[];
 }
 

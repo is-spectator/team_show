@@ -5,7 +5,7 @@ import { createService } from '../../../shared/service.js';
 import { seedProjects } from '../../../shared/seed.js';
 import type { Project, Settings } from '../types';
 
-const KEY = 'team-show:demo-v2';
+const KEY = 'team-show:demo-v3';
 type DB = { projects: Project[]; settings: Partial<Settings> };
 
 function load(): DB {

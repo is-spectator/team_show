@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, ErrorText } from './ui';
-import { toJson, toYaml } from '../../../shared/project.js';
+import { parseText, toJson, toYaml } from '../../../shared/project.js';
 import { SAMPLE_YAML } from '../lib/sample';
 import type { Project } from '../types';
 
@@ -19,8 +19,19 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** 一个文件里可以是一个项目，也可以是多个项目组成的列表（YAML 里每个项目以「- name:」开头） */
+function splitProjects(text: string): string[] {
+  let data: unknown;
+  try {
+    data = parseText(text);
+  } catch {
+    return [text]; // 格式错误交给服务端报，提示更具体
+  }
+  return Array.isArray(data) ? data.map((d) => JSON.stringify(d)) : [text];
+}
+
 /** 粘贴 YAML / JSON 创建项目，也可以选本地的 .yaml / .json 文件 */
-export function ImportDialog({ onImport, onClose }: { onImport: (text: string) => Promise<void>; onClose: () => void }) {
+export function ImportDialog({ onImport, onClose }: { onImport: (texts: string[]) => Promise<void>; onClose: () => void }) {
   const [text, setText] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -28,9 +39,12 @@ export function ImportDialog({ onImport, onClose }: { onImport: (text: string) =
     setBusy(true);
     setErr('');
     try {
-      await onImport(text);
+      await onImport(splitProjects(text));
     } catch (e) {
-      setErr((e as Error).message);
+      // 多个项目时，出错之前的已经创建了
+      const list = splitProjects(text);
+      const msg = (e as Error).message;
+      setErr(list.length > 1 ? msg + '（出错之前的项目已经创建，请把它们从内容里删掉再导入）' : msg);
       setBusy(false);
     }
   };
@@ -41,7 +55,7 @@ export function ImportDialog({ onImport, onClose }: { onImport: (text: string) =
   return (
     <Modal
       title="导入项目"
-      hint="粘贴一份项目的 YAML 或 JSON，或者选择模板文件，点「创建项目」就会多一条鱼。不确定怎么写，可以先点「填入示例」。"
+      hint="粘贴一份项目的 YAML 或 JSON，或者选择模板文件，点「创建项目」就会多一条鱼。一个文件里也可以放多个项目，一次全部创建。不确定怎么写，可以先点「填入示例」。"
       onClose={onClose}
       footer={
         <>

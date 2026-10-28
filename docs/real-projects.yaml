@@ -1,0 +1,150 @@
+# 团队真实项目（8 个）。在项目展示页点「导入项目」，选择这个文件就会一次创建全部项目。
+# 每个项目以「- name:」开头；鱼和小人没写，导入时按顺序自动轮换。
+
+# 注意：开始日期没有给出，暂按 2026-10-01。
+- name: 用户场景监控
+  owner: 张彦
+  members: [张彦, 罗子鸣, 胡逸菲]
+  start: "2026-10-01"
+  end: "2026-12-30"
+  status: on_track
+  goal: DAU 覆盖 9000W
+  goal_detail: Top50 场景准确率、召回率达到 90%，线上 DAU 覆盖达到 9000W。
+  items:
+    - type: update
+      date: "2026-10-23"
+      title: MLP 生成式推理服务
+      author: ""
+      text: 发布第一个支持 MLP 生成式推理服务。
+    - type: update
+      date: "2026-10-29"
+      title: 线上用户监控链路
+      author: ""
+      text: 搭建一个线上用户监控链路。
+    - type: milestone
+      date: "2026-10-30"
+      title: 识别链路小时级更新
+      author: ""
+      text: 线上识别链路小时级别更新。
+    - type: milestone
+      date: "2026-11-15"
+      title: 离线识别链路
+      author: ""
+      text: 搭建可靠的离线识别链路。
+    - type: milestone
+      date: "2026-11-30"
+      title: 场景树 v1 上线
+      author: ""
+      text: 完成第一个版本场景树上线。
+    - type: milestone
+      date: "2026-12-15"
+      title: Top50 准召达到 90%
+      author: ""
+      text: Top50 场景准确率、召回率达到 90%。
+    - type: milestone
+      date: "2026-12-30"
+      title: DAU 覆盖 9000W
+      author: ""
+      text: 线上 DAU 覆盖达到 9000W。
+
+# 注意：开始日期没有给出，暂按 2026-10-01。
+- name: "场景化经营—神主页面"
+  owner: 张彦
+  members: [张彦, 罗子鸣, 胡逸菲]
+  start: "2026-10-01"
+  end: "2026-11-07"
+  status: on_track
+  goal: 小时级更新
+  goal_detail: 线上支持 5 个场景识别，链路支持 1 小时级别更新。
+  items:
+    - type: update
+      date: "2026-10-23"
+      title: MLP 生成式推理服务
+      author: ""
+      text: 发布第一个支持 MLP 生成式推理服务。
+    - type: update
+      date: "2026-10-27"
+      title: personal 标签注册
+      author: ""
+      text: personal 标签已经注册。
+    - type: update
+      date: "2026-10-29"
+      title: 支持 5 个场景识别
+      author: ""
+      text: 发布支持 5 个场景的识别。
+    - type: milestone
+      date: "2026-10-30"
+      title: 线上 5 个场景识别
+      author: ""
+      text: 线上支持 5 个场景识别。
+    - type: milestone
+      date: "2026-11-07"
+      title: 链路小时级更新
+      author: ""
+      text: 线上链路支持 1 小时级别更新。
+
+# 注意：这个项目已完成，起止日期是占位的（7/1 – 10/15），进展待补，补齐后可在页面上「编辑项目」修改。
+- name: 场景化补贴-团购一期
+  owner: 张彦
+  members: [张彦, 罗子鸣]
+  start: "2026-07-01"
+  end: "2026-10-15"
+  status: done
+  goal: 已上线
+  goal_detail: 已完成，进展和起止日期待补。
+  items: []
+
+# 注意：这个项目已完成，起止日期是占位的（7/1 – 10/15），进展待补，补齐后可在页面上「编辑项目」修改。
+- name: 场景化补贴-闪购一期
+  owner: 张彦
+  members: [张彦, 董晴]
+  start: "2026-07-01"
+  end: "2026-10-15"
+  status: done
+  goal: 已上线
+  goal_detail: 已完成，进展和起止日期待补。
+  items: []
+
+# 注意：这个项目已完成，起止日期是占位的（7/1 – 10/15），进展待补，补齐后可在页面上「编辑项目」修改。
+- name: 场景化补贴-门票
+  owner: 张彦
+  members: [张彦, 黎文龙]
+  start: "2026-07-01"
+  end: "2026-10-15"
+  status: done
+  goal: 已上线
+  goal_detail: 已完成，进展和起止日期待补。
+  items: []
+
+# 注意：需求沟通中，起止日期是占位的（10/15 – 12/31），定下来后再改。
+- name: 场景化经营-闪购
+  owner: 张彦
+  members: [张彦]
+  start: "2026-10-15"
+  end: "2026-12-31"
+  status: on_track
+  goal: 需求沟通中
+  goal_detail: 需求沟通中，里程碑和交付日期待定。
+  items: []
+
+# 注意：这个项目已完成，起止日期是占位的（7/1 – 10/15），进展待补，补齐后可在页面上「编辑项目」修改。
+- name: 客服 X-Agent
+  owner: ""
+  members: []
+  start: "2026-07-01"
+  end: "2026-10-15"
+  status: done
+  goal: 已上线
+  goal_detail: 已完成，进展和起止日期待补。
+  items: []
+
+# 注意：这个项目已完成，起止日期是占位的（7/1 – 10/15），进展待补，补齐后可在页面上「编辑项目」修改。
+- name: 客服-到餐商家
+  owner: ""
+  members: []
+  start: "2026-07-01"
+  end: "2026-10-15"
+  status: done
+  goal: 已上线
+  goal_detail: 已完成，进展和起止日期待补。
+  items: []

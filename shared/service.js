@@ -9,7 +9,7 @@ export class NotFound extends Error {
 }
 
 const ITEM_FIELDS = ['type', 'date', 'title', 'author', 'text', 'links'];
-const PROJECT_FIELDS = ['name', 'owner', 'members', 'start', 'end', 'status', 'fish', 'rider', 'goal', 'goal_detail'];
+const PROJECT_FIELDS = ['name', 'owner', 'members', 'start', 'end', 'status', 'fish', 'rider', 'goal', 'goal_detail', 'sample'];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj && obj[k] !== undefined).map((k) => [k, obj[k]]));
 
 export function createService(store) {
@@ -37,6 +37,7 @@ export function createService(store) {
     // 导入：{ text } 是粘贴的 YAML / JSON，{ project } 是已经解析好的对象。
     ['POST', /^\/projects$/, (b) => {
       const raw = b.text !== undefined ? parseText(b.text) : b.project;
+      if (Array.isArray(raw)) throw new ValidationError('一次导入一个项目；多个项目请分开导入');
       const p = normalizeProject({ ...raw, id: undefined }, store.list().length);
       p.id = newId('p');
       p.items = p.items.map((it) => ({ ...it, id: newId('i') }));

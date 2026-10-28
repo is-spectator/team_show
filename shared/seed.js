@@ -1,10 +1,10 @@
-// 示例数据：数据库为空时写入，第一次打开就能看到完整效果。设置环境变量 SEED=false 可以从空库开始。
-// 鱼和小人没有写，按顺序自动轮换。
+// 初始数据：团队的真实项目 + 一组示例项目（sample: true，首页切到「示例项目」才看得到）。
+// 数据库为空时写入；设置环境变量 SEED=false 可以从空库开始。鱼和小人没有写，按顺序自动轮换。
 import { normalizeProject } from './project.js';
 
 const L = (title, url) => ({ title: title, url: url });
 const IT = (type, date, title, author, text, links) => ({ type: type, date: date, title: title, author: author, text: text || '', links: links || [] });
-const SEED = [
+const SAMPLE = [
   { id: 'cs-platform-2', name: '智能客服平台 2.0', owner: '陈思', members: ['刘洋', '赵敏', '郑雨', '周航'], status: 'on_track', start: '2026-08-01', end: '2026-12-20', goal: '全量发布', goal_detail: '覆盖 80% 常见咨询，人工转接率下降 30%。', items: [
     IT('milestone', '2026-08-15', '需求评审通过', '陈思', 'PRD 评审通过，确定覆盖 80% 常见咨询的目标与验收口径。', [L('智能客服 2.0 · PRD', 'https://example.com/docs/prd')]),
     IT('update', '2026-08-28', '技术选型调研', '刘洋', '完成三套检索方案对比，倾向向量 + 关键词混合检索。'),
@@ -49,10 +49,58 @@ const SEED = [
   ] }
 ];
 
-export const seedProjects = SEED.map((p, i) => normalizeProject(p, i));
+// 真实项目。开始日期没有给出的，暂按 10 月 1 日；已完成的项目日期待补，先放了占位日期。
+const M = (date, title, text) => IT('milestone', date, title, '', text);
+const U = (date, title, text) => IT('update', date, title, '', text);
+const DONE = { status: 'done', start: '2026-07-01', end: '2026-10-15', goal: '已上线', goal_detail: '已完成，进展和起止日期待补。', items: [] };
+const REAL = [
+  { id: 'scene-monitor', name: '用户场景监控', owner: '张彦', members: ['张彦', '罗子鸣', '胡逸菲'], status: 'on_track', start: '2026-10-01', end: '2026-12-30',
+    goal: 'DAU 覆盖 9000W', goal_detail: 'Top50 场景准确率、召回率达到 90%，线上 DAU 覆盖达到 9000W。', items: [
+      U('2026-10-23', 'MLP 生成式推理服务', '发布第一个支持 MLP 生成式推理服务。'),
+      U('2026-10-29', '线上用户监控链路', '搭建一个线上用户监控链路。'),
+      M('2026-10-30', '识别链路小时级更新', '线上识别链路小时级别更新。'),
+      M('2026-11-15', '离线识别链路', '搭建可靠的离线识别链路。'),
+      M('2026-11-30', '场景树 v1 上线', '完成第一个版本场景树上线。'),
+      M('2026-12-15', 'Top50 准召达到 90%', 'Top50 场景准确率、召回率达到 90%。'),
+      M('2026-12-30', 'DAU 覆盖 9000W', '线上 DAU 覆盖达到 9000W。')
+    ] },
+  { id: 'scene-ops-home', name: '场景化经营—神主页面', owner: '张彦', members: ['张彦', '罗子鸣', '胡逸菲'], status: 'on_track', start: '2026-10-01', end: '2026-11-07',
+    goal: '小时级更新', goal_detail: '线上支持 5 个场景识别，链路支持 1 小时级别更新。', items: [
+      U('2026-10-23', 'MLP 生成式推理服务', '发布第一个支持 MLP 生成式推理服务。'),
+      U('2026-10-27', 'personal 标签注册', 'personal 标签已经注册。'),
+      U('2026-10-29', '支持 5 个场景识别', '发布支持 5 个场景的识别。'),
+      M('2026-10-30', '线上 5 个场景识别', '线上支持 5 个场景识别。'),
+      M('2026-11-07', '链路小时级更新', '线上链路支持 1 小时级别更新。')
+    ] },
+  { id: 'subsidy-groupbuy-1', name: '场景化补贴-团购一期', owner: '张彦', members: ['张彦', '罗子鸣'], ...DONE },
+  { id: 'subsidy-flash-1', name: '场景化补贴-闪购一期', owner: '张彦', members: ['张彦', '董晴'], ...DONE },
+  { id: 'subsidy-ticket', name: '场景化补贴-门票', owner: '张彦', members: ['张彦', '黎文龙'], ...DONE },
+  { id: 'scene-ops-flash', name: '场景化经营-闪购', owner: '张彦', members: ['张彦'], status: 'on_track', start: '2026-10-15', end: '2026-12-31',
+    goal: '需求沟通中', goal_detail: '需求沟通中，里程碑和交付日期待定。', items: [] },
+  { id: 'cs-x-agent', name: '客服 X-Agent', owner: '', members: [], ...DONE },
+  { id: 'cs-dine-merchant', name: '客服-到餐商家', owner: '', members: [], ...DONE }
+];
 
-export function seedIfEmpty(store) {
-  if (store.list().length) return false;
-  for (const p of seedProjects) store.insert(p.id, p);
+export const realProjects = REAL.map((p, i) => normalizeProject(p, i));
+export const sampleProjects = SAMPLE.map((p, i) => normalizeProject({ ...p, sample: true }, i));
+export const seedProjects = [...realProjects, ...sampleProjects];
+
+// 第 1 版初始数据只有示例项目；第 2 版加了真实项目，并把示例项目标成 sample。
+// 用 seedVersion 记录写到了哪一版，已经删掉的项目不会再被加回来。
+const SEED_VERSION = 2;
+
+export function seedIfNeeded(store) {
+  const list = store.list();
+  const version = store.getSettings().seedVersion || (list.length ? 1 : 0);
+  if (version >= SEED_VERSION) return false;
+  const have = new Set(list.map((p) => p.id));
+  if (version === 1) {
+    for (const p of sampleProjects) {
+      const old = store.get(p.id);
+      if (old && !old.sample) store.update(p.id, { ...old, sample: true });
+    }
+  }
+  for (const p of version === 1 ? realProjects : seedProjects) if (!have.has(p.id)) store.insert(p.id, p);
+  store.setSettings({ seedVersion: SEED_VERSION });
   return true;
 }

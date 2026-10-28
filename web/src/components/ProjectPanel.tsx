@@ -89,6 +89,10 @@ export function ProjectPanel({ draft, onDraft, onSave, onDelete, onClose }: Prop
         <label className="fld wide">目标说明
           <textarea rows={2} value={draft.goal_detail} onChange={(e) => set({ goal_detail: e.target.value })} />
         </label>
+        <label className="check wide">
+          <input type="checkbox" checked={draft.sample} onChange={(e) => set({ sample: e.target.checked })} />
+          示例项目（放到首页的「示例项目」里，不和真实项目混在一起）
+        </label>
       </div>
       {draft.status === 'done' && <p className="muted">已交付的项目，小人会换成举旗冲线的样子。</p>}
       <ErrorText>{err}</ErrorText>

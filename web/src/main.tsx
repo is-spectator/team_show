@@ -23,7 +23,7 @@ function DemoBanner() {
   if (!__DEMO__) return null;
   const reset = () => {
     try {
-      localStorage.removeItem('team-show:demo-v2');
+      localStorage.removeItem('team-show:demo-v3');
     } catch {
       /* 忽略 */
     }

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import YAML from 'yaml';
 import { openDb } from '../server/db.js';
 import { createApp } from '../server/app.js';
-import { seedIfEmpty } from '../shared/seed.js';
+import { realProjects, sampleProjects, seedIfNeeded } from '../shared/seed.js';
 import { normalizeProject, parseText, toJson, toYaml } from '../shared/project.js';
 
 let server, base, store;
@@ -21,21 +21,39 @@ const template = readFileSync(new URL('../docs/project-template.yaml', import.me
 
 before(async () => {
   store = openDb(':memory:');
-  seedIfEmpty(store);
+  seedIfNeeded(store);
   server = createApp(store, { editPassword: 'pw' }).listen(0);
   await new Promise((r) => server.once('listening', r));
   base = 'http://127.0.0.1:' + server.address().port;
 });
 after(() => server.close());
 
-test('bootstrap 返回示例项目，每个项目都有鱼和小人', async () => {
+test('bootstrap 返回真实项目和示例项目，每个项目都有鱼和小人', async () => {
   const { status, data } = await call('GET', '/api/bootstrap');
   assert.equal(status, 200);
   assert.equal(data.authRequired, true);
-  assert.equal(data.projects.length, 7);
-  assert.equal(data.projects[0].id, 'cs-platform-2');
-  assert.deepEqual(data.projects.map((p) => p.fish).slice(0, 3), ['蓝鳍鱼', '胡子鲶', '尖嘴鱼']);
+  const real = data.projects.filter((p) => !p.sample), sample = data.projects.filter((p) => p.sample);
+  assert.equal(real.length, 8);
+  assert.equal(sample.length, 7);
+  assert.equal(real[0].name, '用户场景监控');
+  assert.deepEqual(real[0].items.filter((it) => it.type === 'milestone').map((it) => it.date), ['2026-10-30', '2026-11-15', '2026-11-30', '2026-12-15', '2026-12-30']);
+  assert.equal(sample[0].id, 'cs-platform-2');
+  assert.deepEqual(real.map((p) => p.fish).slice(0, 3), ['蓝鳍鱼', '胡子鲶', '尖嘴鱼']);
   assert.ok(data.projects.every((p) => p.rider && p.items.every((it) => it.id)));
+});
+
+test('第一版的库升级时补上真实项目，示例项目标成 sample，删掉的不会回来', () => {
+  const old = openDb(':memory:');
+  for (const p of sampleProjects) old.insert(p.id, { ...p, sample: undefined });
+  old.remove('design-spec');
+  assert.equal(seedIfNeeded(old), true);
+  const list = old.list();
+  assert.equal(list.filter((p) => p.sample).length, 6);
+  assert.equal(list.filter((p) => !p.sample).length, realProjects.length);
+  assert.ok(!old.get('design-spec'));
+  old.remove('cs-x-agent');
+  assert.equal(seedIfNeeded(old), false);
+  assert.ok(!old.get('cs-x-agent'));
 });
 
 test('没有密码不能写，浏览不需要密码', async () => {
@@ -100,7 +118,8 @@ test('新增进展、新增里程碑、改、删都会保存', async () => {
 });
 
 test('修改项目信息、换鱼换小人、删除项目', async () => {
-  const r = await call('PATCH', '/api/projects/mobile-kb', { status: 'at_risk', fish: '青鱼', rider: '滑板', goal: '上线', items: [] }, W);
+  const r = await call('PATCH', '/api/projects/mobile-kb', { status: 'at_risk', fish: '青鱼', rider: '滑板', goal: '上线', sample: false, items: [] }, W);
+  assert.equal(r.data.sample, false);
   assert.equal(r.status, 200);
   assert.equal(r.data.fish, '青鱼');
   assert.equal(r.data.rider, '滑板');
@@ -117,6 +136,8 @@ test('导出的 YAML / JSON 再导入，得到同一个项目', () => {
     assert.deepEqual(strip(normalizeProject(parseText(toYaml(p)))), strip(sorted));
     assert.deepEqual(strip(normalizeProject(parseText(toJson(p)))), strip(sorted));
   }
+  assert.ok(toYaml(store.get('qa-model')).includes('sample: true'));
+  assert.ok(!toYaml(store.get('scene-monitor')).includes('sample'));
   const tricky = normalizeProject({ name: 'a: b # c', start: '2026-01-01', end: '2026-02-01', goal: 'true', goal_detail: '第一行\n第二行', items: [{ date: '2026-01-10', title: '- 横杠开头', text: '"引号"' }] });
   const back = normalizeProject(YAML.parse(toYaml(tricky)));
   assert.equal(back.name, 'a: b # c');
