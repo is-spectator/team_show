@@ -1,0 +1,33 @@
+{
+  "name": "team-show",
+  "version": "1.0.0",
+  "private": true,
+  "description": "团队主页：项目鱼骨图、进展同步、成员介绍、Wiki 索引",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "node --run dev:server & node --run dev:web",
+    "dev:server": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "dev:web": "vite",
+    "build": "tsc -p web && vite build",
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "express": "^5.3.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^7.18.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
+  }
+}
