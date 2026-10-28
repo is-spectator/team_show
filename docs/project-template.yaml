@@ -1,0 +1,65 @@
+# 项目展示 · 项目数据模板 v2
+#
+# 一份文件 = 一个项目 = 一条鱼。在项目展示页点「导入项目」，粘贴这份内容（或 JSON 版本）即可创建项目。
+#   鱼尾 = start，鱼头 = end + goal
+#   items 里每一条长一根鱼骨：
+#     type: milestone  里程碑 → 实线鱼骨（日期在今天之后的画成浅灰实线，表示计划）
+#     type: update     进展   → 虚线鱼骨
+#
+# 约定：
+#   - 日期写成带引号的 "YYYY-MM-DD"
+#   - 除了 name / start / end，其他字段都可以不填
+#   - links 是附带的文档链接，可以有多条
+
+name: 智能客服平台 2.0
+owner: 陈思
+members: [刘洋, 赵敏, 郑雨, 周航]
+start: "2026-08-01"            # 鱼尾：项目开始
+end: "2026-12-20"              # 鱼头：项目交付
+status: on_track               # on_track 按计划推进 | at_risk 需要关注 | delayed 有延期 | done 已交付
+fish: 胡子鲶                    # 鱼的样子：蓝鳍鱼 | 胡子鲶 | 尖嘴鱼 | 河豚 | 长吻鱼 | 青鱼 | 灰鲫鱼（不填就自动轮换）
+rider: 自行车                  # 进度上的小人：自行车 | 小轿车 | 跑步的人 | 滑板车 | 滑板（已交付时自动换成举旗冲线）
+goal: 全量发布                  # 写在鱼头下面，几个字
+goal_detail: 覆盖 80% 常见咨询，人工转接率下降 30%
+
+items:
+  - type: milestone
+    date: "2026-08-15"
+    title: 需求评审通过
+    author: 陈思
+    text: PRD 评审通过，确定覆盖 80% 常见咨询的目标与验收口径。
+    links:
+      - title: 智能客服 2.0 · PRD
+        url: https://example.com/docs/prd
+
+  - type: update
+    date: "2026-08-28"
+    title: 技术选型调研
+    author: 刘洋
+    text: 完成三套检索方案对比，倾向向量 + 关键词混合检索。
+
+  - type: milestone
+    date: "2026-09-05"
+    title: 技术方案定稿
+    author: 刘洋
+    text: 检索增强架构评审通过，拆分为检索、生成、评测三个模块。
+    links:
+      - title: 技术方案：检索增强架构
+        url: https://example.com/docs/arch
+      - title: 架构评审记录
+        url: https://example.com/docs/arch-review
+
+  - type: update
+    date: "2026-10-21"
+    title: 知识清洗第一批
+    author: 赵敏
+    text: 完成知识库清洗第一批 3,200 条。标注人力不足，需要业务方 11 月前协调 2 名标注同学。
+
+  - type: milestone
+    date: "2026-11-15"
+    title: 灰度上线
+    author: 陈思
+    text: 在 2 个客服组灰度，观察自助解决率与转人工率。
+    links:
+      - title: 灰度发布 Checklist
+        url: https://example.com/docs/gray-checklist
