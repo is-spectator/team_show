@@ -2,7 +2,7 @@
   "name": "team-show",
   "version": "1.0.0",
   "private": true,
-  "description": "团队主页：项目鱼骨图、进展同步、成员介绍、Wiki 索引",
+  "description": "项目展示：每个项目一条鱼骨图，给老板和协作方看进展",
   "type": "module",
   "engines": {
     "node": ">=22.13"
@@ -17,7 +17,6 @@
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
   },
   "dependencies": {
-    "ajv": "^8.20.0",
     "express": "^5.3.0",
     "yaml": "^2.9.1"
   },

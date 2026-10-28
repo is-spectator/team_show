@@ -3,19 +3,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, MemoryRouter, Route, Routes, Link } from 'react-router';
 import { DataProvider } from './store';
-import { Layout, Crumb } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
-import { Projects } from './pages/Projects';
-import { ProjectDetail } from './pages/ProjectDetail';
-import { Sync } from './pages/Sync';
-import { Members } from './pages/Members';
-import { Wiki } from './pages/Wiki';
+import { Layout } from './components/Layout';
+import { Home } from './pages/Home';
+import { ProjectPage } from './pages/ProjectPage';
 import './styles.css';
 
 function NotFound() {
   return (
-    <Layout crumb={<Crumb items={[{ label: '页面不存在' }]} />}>
-      <div className="pn empty">页面不存在。<Link to="/">回到工作台</Link></div>
+    <Layout back>
+      <p className="empty">页面不存在。<Link to="/">回到全部项目</Link></p>
     </Layout>
   );
 }
@@ -27,7 +23,7 @@ function DemoBanner() {
   if (!__DEMO__) return null;
   const reset = () => {
     try {
-      localStorage.removeItem('team-show:demo-data');
+      localStorage.removeItem('team-show:demo-v2');
     } catch {
       /* 忽略 */
     }
@@ -36,7 +32,7 @@ function DemoBanner() {
   return (
     <div className="demo-bar">
       预览版：数据只保存在你自己的浏览器里，正式部署后才会多人共享。
-      <button type="button" className="link" onClick={reset}>恢复示例数据</button>
+      <button type="button" className="link-btn" onClick={reset}>恢复示例数据</button>
     </div>
   );
 }
@@ -47,12 +43,8 @@ createRoot(document.getElementById('root')!).render(
       <DemoBanner />
       <DataProvider>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/sync" element={<Sync />} />
-          <Route path="/members" element={<Members />} />
-          <Route path="/wiki" element={<Wiki />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/p/:id" element={<ProjectPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </DataProvider>

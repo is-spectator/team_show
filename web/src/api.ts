@@ -1,4 +1,4 @@
-import type { Bootstrap, Doc, Fishbone, Member, Milestone, ProjectInfo, Settings, Update } from './types';
+import type { Bootstrap, Item, Project, ProjectInfo, Settings } from './types';
 
 const PW_KEY = 'team-show:edit-password';
 
@@ -25,7 +25,9 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+type Transport = (method: string, path: string, body?: unknown) => Promise<unknown>;
+
+const http: Transport = async (method, path, body) => {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   const pw = getPassword();
@@ -38,40 +40,29 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data.error || '请求失败（' + res.status + '）');
-  return data as T;
+  return data;
+};
+
+let transport = http;
+/** 预览版没有服务器，换成在浏览器里处理请求 */
+export function setTransport(t: Transport) {
+  transport = t;
 }
 
+const call = <T>(method: string, path: string, body?: unknown) => transport(method, path, body) as Promise<T>;
 const enc = encodeURIComponent;
-
-let exportUrl = (id: string, format: 'json' | 'yaml') => `/api/projects/${enc(id)}/export?format=${format}`;
-/** 预览版没有服务器，用它换成浏览器里生成的下载链接 */
-export function setExportUrl(fn: typeof exportUrl) {
-  exportUrl = fn;
-}
+type ItemInput = Omit<Item, 'id'>;
 
 export const api = {
   bootstrap: () => call<Bootstrap>('GET', '/bootstrap'),
   login: (password: string) => call<{ ok: true }>('POST', '/auth', { password }),
-  saveSettings: (s: Partial<Settings>) => call<Settings>('PUT', '/settings', s),
+  saveSettings: (s: Settings) => call<Settings>('PUT', '/settings', s),
 
-  createProject: (form: Record<string, unknown>) => call<Fishbone>('POST', '/projects', form),
-  importNewProject: (text: string) => call<Fishbone>('POST', '/projects', { text }),
-  replaceProject: (id: string, text: string) => call<Fishbone>('PUT', `/projects/${enc(id)}`, { text }),
-  patchProject: (id: string, info: Partial<ProjectInfo>) => call<Fishbone>('PATCH', `/projects/${enc(id)}/info`, info),
-  deleteProject: (id: string) => call('DELETE', `/projects/${enc(id)}`),
-  exportUrl: (id: string, format: 'json' | 'yaml') => exportUrl(id, format),
+  importProject: (text: string) => call<Project>('POST', '/projects', { text }),
+  patchProject: (id: string, info: Partial<ProjectInfo>) => call<Project>('PATCH', `/projects/${enc(id)}`, info),
+  deleteProject: (id: string) => call<{ ok: true }>('DELETE', `/projects/${enc(id)}`),
 
-  addMilestone: (pid: string, m: Partial<Milestone>) => call<Milestone>('POST', `/projects/${enc(pid)}/milestones`, m),
-  saveMilestone: (pid: string, m: Milestone) => call<Milestone>('PUT', `/projects/${enc(pid)}/milestones/${enc(m.id)}`, m),
-  deleteMilestone: (pid: string, id: string) => call('DELETE', `/projects/${enc(pid)}/milestones/${enc(id)}`),
-
-  addUpdate: (pid: string, u: Partial<Update>) => call<Update>('POST', `/projects/${enc(pid)}/updates`, u),
-  saveUpdate: (pid: string, u: Update) => call<Update>('PUT', `/projects/${enc(pid)}/updates/${enc(u.id)}`, u),
-  deleteUpdate: (pid: string, id: string) => call('DELETE', `/projects/${enc(pid)}/updates/${enc(id)}`),
-
-  saveMember: (m: Partial<Member>) => (m.id ? call<Member>('PUT', `/members/${enc(m.id)}`, m) : call<Member>('POST', '/members', m)),
-  deleteMember: (id: string) => call('DELETE', `/members/${enc(id)}`),
-
-  saveDoc: (d: Partial<Doc>) => (d.id ? call<Doc>('PUT', `/docs/${enc(d.id)}`, d) : call<Doc>('POST', '/docs', d)),
-  deleteDoc: (id: string) => call('DELETE', `/docs/${enc(id)}`)
+  addItem: (pid: string, item: ItemInput) => call<{ project: Project; item: Item }>('POST', `/projects/${enc(pid)}/items`, item),
+  saveItem: (pid: string, item: Item) => call<{ project: Project; item: Item }>('PUT', `/projects/${enc(pid)}/items/${enc(item.id)}`, item),
+  deleteItem: (pid: string, id: string) => call<{ project: Project }>('DELETE', `/projects/${enc(pid)}/items/${enc(id)}`)
 };

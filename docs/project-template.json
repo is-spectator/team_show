@@ -1,0 +1,76 @@
+{
+  "name": "智能客服平台 2.0",
+  "owner": "陈思",
+  "members": [
+    "刘洋",
+    "赵敏",
+    "郑雨",
+    "周航"
+  ],
+  "start": "2026-08-01",
+  "end": "2026-12-20",
+  "status": "on_track",
+  "fish": "胡子鲶",
+  "rider": "自行车",
+  "goal": "全量发布",
+  "goal_detail": "覆盖 80% 常见咨询，人工转接率下降 30%",
+  "items": [
+    {
+      "type": "milestone",
+      "date": "2026-08-15",
+      "title": "需求评审通过",
+      "author": "陈思",
+      "text": "PRD 评审通过，确定覆盖 80% 常见咨询的目标与验收口径。",
+      "links": [
+        {
+          "title": "智能客服 2.0 · PRD",
+          "url": "https://example.com/docs/prd"
+        }
+      ]
+    },
+    {
+      "type": "update",
+      "date": "2026-08-28",
+      "title": "技术选型调研",
+      "author": "刘洋",
+      "text": "完成三套检索方案对比，倾向向量 + 关键词混合检索。"
+    },
+    {
+      "type": "milestone",
+      "date": "2026-09-05",
+      "title": "技术方案定稿",
+      "author": "刘洋",
+      "text": "检索增强架构评审通过，拆分为检索、生成、评测三个模块。",
+      "links": [
+        {
+          "title": "技术方案：检索增强架构",
+          "url": "https://example.com/docs/arch"
+        },
+        {
+          "title": "架构评审记录",
+          "url": "https://example.com/docs/arch-review"
+        }
+      ]
+    },
+    {
+      "type": "update",
+      "date": "2026-10-21",
+      "title": "知识清洗第一批",
+      "author": "赵敏",
+      "text": "完成知识库清洗第一批 3,200 条。标注人力不足，需要业务方 11 月前协调 2 名标注同学。"
+    },
+    {
+      "type": "milestone",
+      "date": "2026-11-15",
+      "title": "灰度上线",
+      "author": "陈思",
+      "text": "在 2 个客服组灰度，观察自助解决率与转人工率。",
+      "links": [
+        {
+          "title": "灰度发布 Checklist",
+          "url": "https://example.com/docs/gray-checklist"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.js';
 import { createApp } from './app.js';
-import { seedIfEmpty } from './seed.js';
+import { seedIfEmpty } from '../shared/seed.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dbFile = process.env.DB_FILE || root + 'data/team.db';
@@ -15,5 +15,5 @@ const app = createApp(store, {
   staticDir: root + 'dist'
 });
 app.listen(port, () => {
-  console.log(`团队主页已启动：http://localhost:${port}  数据库：${dbFile}`);
+  console.log(`项目展示已启动：http://localhost:${port}  数据库：${dbFile}`);
 });

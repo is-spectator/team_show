@@ -1,9 +1,11 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import YAML from 'yaml';
 import { openDb } from '../server/db.js';
 import { createApp } from '../server/app.js';
-import { seedIfEmpty, seedProjects } from '../server/seed.js';
-import { validateFishbone } from '../server/validate.js';
+import { seedIfEmpty } from '../shared/seed.js';
+import { normalizeProject, parseText, toJson, toYaml } from '../shared/project.js';
 
 let server, base, store;
 const call = async (method, path, body, headers = {}) => {
@@ -12,11 +14,10 @@ const call = async (method, path, body, headers = {}) => {
     headers: { 'content-type': 'application/json', ...headers },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = text; }
-  return { status: res.status, data };
+  return { status: res.status, data: await res.json() };
 };
+const W = { 'x-edit-password': 'pw' };
+const template = readFileSync(new URL('../docs/project-template.yaml', import.meta.url), 'utf8');
 
 before(async () => {
   store = openDb(':memory:');
@@ -27,99 +28,106 @@ before(async () => {
 });
 after(() => server.close());
 
-const W = { 'x-edit-password': 'pw' };
-
-test('bootstrap 返回示例数据，且示例数据都符合 schema', async () => {
+test('bootstrap 返回示例项目，每个项目都有鱼和小人', async () => {
   const { status, data } = await call('GET', '/api/bootstrap');
   assert.equal(status, 200);
   assert.equal(data.authRequired, true);
   assert.equal(data.projects.length, 7);
-  assert.equal(data.members.length, 8);
-  assert.ok(data.docs.length >= 12);
-  assert.equal(data.projects[0].project.id, 'cs-platform-2');
-  for (const p of seedProjects) validateFishbone(p);
+  assert.equal(data.projects[0].id, 'cs-platform-2');
+  assert.deepEqual(data.projects.map((p) => p.fish).slice(0, 3), ['蓝鳍鱼', '胡子鲶', '尖嘴鱼']);
+  assert.ok(data.projects.every((p) => p.rider && p.items.every((it) => it.id)));
 });
 
-test('没有密码不能写', async () => {
-  const r = await call('POST', '/api/projects/cs-platform-2/updates', { date: '2026-10-28', title: 'x' });
-  assert.equal(r.status, 401);
+test('没有密码不能写，浏览不需要密码', async () => {
+  assert.equal((await call('POST', '/api/projects', { text: template })).status, 401);
   assert.equal((await call('POST', '/api/auth', { password: 'bad' })).status, 401);
   assert.equal((await call('POST', '/api/auth', { password: 'pw' })).status, 200);
 });
 
-test('写进展、改进展、删进展都会持久化', async () => {
-  const add = await call('POST', '/api/projects/cs-platform-2/updates', { date: '2026-10-28', title: '缓存优化', author: '刘洋', content: 'P99 降到 0.8s' }, W);
-  assert.equal(add.status, 201);
-  assert.equal(add.data.status, 'normal');
-  const id = add.data.id;
-  let doc = store.get('projects', 'cs-platform-2');
-  assert.ok(doc.updates.some((u) => u.id === id));
+test('导入模板文件就创建一个项目，排在最前面', async () => {
+  const r = await call('POST', '/api/projects', { text: template }, W);
+  assert.equal(r.status, 201);
+  assert.equal(r.data.name, '智能客服平台 2.0');
+  assert.equal(r.data.fish, '胡子鲶');
+  assert.equal(r.data.rider, '自行车');
+  assert.equal(r.data.items.length, 5);
+  assert.deepEqual(r.data.items.map((it) => it.type), ['milestone', 'update', 'milestone', 'update', 'milestone']);
+  assert.equal(r.data.items[2].links.length, 2);
+  const list = (await call('GET', '/api/bootstrap')).data.projects;
+  assert.equal(list[0].id, r.data.id);
 
-  const upd = await call('PUT', `/api/projects/cs-platform-2/updates/${id}`, { ...add.data, status: 'risk', risk: '缺人' }, W);
-  assert.equal(upd.status, 200);
-  doc = store.get('projects', 'cs-platform-2');
-  assert.equal(doc.updates.find((u) => u.id === id).status, 'risk');
-
-  assert.equal((await call('DELETE', `/api/projects/cs-platform-2/updates/${id}`, undefined, W)).status, 200);
-  assert.ok(!store.get('projects', 'cs-platform-2').updates.some((u) => u.id === id));
+  const json = readFileSync(new URL('../docs/project-template.json', import.meta.url), 'utf8');
+  const r2 = await call('POST', '/api/projects', { text: json }, W);
+  assert.equal(r2.status, 201);
+  assert.notEqual(r2.data.id, r.data.id);
+  assert.deepEqual(r2.data.items.map((it) => it.title), r.data.items.map((it) => it.title));
 });
 
-test('里程碑标记完成时自动补完成日期，改回计划会去掉', async () => {
-  const doc = store.get('projects', 'cs-platform-2');
-  const m4 = doc.milestones.find((m) => m.id === 'm4');
-  const r = await call('PUT', '/api/projects/cs-platform-2/milestones/m4', { ...m4, status: 'done', attachments: [{ title: '', url: 'https://x.com/a' }] }, W);
+test('导入时的错误会说清楚是哪里', async () => {
+  const bad = async (text) => (await call('POST', '/api/projects', { text }, W)).data.error;
+  assert.match(await bad(''), /空/);
+  assert.match(await bad('name: x\nstart: "2026-01-01"'), /start 和 end/);
+  assert.match(await bad('name: x\nstart: "2026-05-01"\nend: "2026-01-01"'), /晚于/);
+  assert.match(await bad('name: x\nstart: "2026-01-01"\nend: "2026-05-01"\nfish: 鲨鱼'), /fish 只能是/);
+  assert.match(await bad('name: x\nstart: "2026-01-01"\nend: "2026-05-01"\nitems:\n  - type: idea\n    date: "2026-02-01"'), /第 1 条 items.*type/);
+  assert.match(await bad('name: x\nstart: "2026-01-01"\nend: "2026-05-01"\nitems:\n  - date: "2026-02-30"'), /第 1 条 items.*date/);
+  assert.match(await bad('name: x\nstart: "2026-01-01"\nend: "2026-05-01"\nitems:\n  - date: "2026-02-01"\n    links:\n      - url: "javascript:alert(1)"'), /http/);
+  assert.match(await bad('name: [unclosed'), /格式有误/);
+});
+
+test('新增进展、新增里程碑、改、删都会保存', async () => {
+  const pid = 'qa-model';
+  const before = (await call('GET', '/api/bootstrap')).data.projects.find((p) => p.id === pid).items.length;
+
+  const a = await call('POST', `/api/projects/${pid}/items`, { type: 'update', date: '2026-10-28', title: '新的进展' }, W);
+  assert.equal(a.status, 201);
+  assert.equal(a.data.item.type, 'update');
+  const b = await call('POST', `/api/projects/${pid}/items`, { type: 'milestone', date: '2026-11-30', title: '上线', links: [{ title: '方案', url: 'example.com/plan' }] }, W);
+  assert.equal(b.data.item.links[0].url, 'https://example.com/plan');
+  assert.equal(b.data.project.items.length, before + 2);
+
+  const c = await call('PUT', `/api/projects/${pid}/items/${a.data.item.id}`, { type: 'milestone', date: '2026-10-29', title: '改成里程碑', text: '说明' }, W);
+  assert.equal(c.status, 200);
+  assert.equal(c.data.item.type, 'milestone');
+  assert.equal(c.data.item.text, '说明');
+
+  const d = await call('DELETE', `/api/projects/${pid}/items/${b.data.item.id}`, undefined, W);
+  assert.equal(d.data.project.items.length, before + 1);
+  assert.equal((await call('DELETE', `/api/projects/${pid}/items/${b.data.item.id}`, undefined, W)).status, 404);
+
+  const saved = store.get(pid);
+  assert.equal(saved.items.find((it) => it.id === a.data.item.id).title, '改成里程碑');
+});
+
+test('修改项目信息、换鱼换小人、删除项目', async () => {
+  const r = await call('PATCH', '/api/projects/mobile-kb', { status: 'at_risk', fish: '青鱼', rider: '滑板', goal: '上线', items: [] }, W);
   assert.equal(r.status, 200);
-  assert.match(r.data.done_date, /^\d{4}-\d{2}-\d{2}$/);
-  assert.deepEqual(r.data.attachments, [{ title: 'https://x.com/a', url: 'https://x.com/a', type: 'doc' }]);
-  const back = await call('PUT', '/api/projects/cs-platform-2/milestones/m4', { ...r.data, status: 'planned' }, W);
-  assert.equal(back.data.done_date, undefined);
+  assert.equal(r.data.fish, '青鱼');
+  assert.equal(r.data.rider, '滑板');
+  assert.ok(r.data.items.length > 0, 'PATCH 不会改到 items');
+  assert.equal((await call('PATCH', '/api/projects/mobile-kb', { end: '2020-01-01' }, W)).status, 400);
+  assert.equal((await call('DELETE', '/api/projects/mobile-kb', undefined, W)).status, 200);
+  assert.equal((await call('PATCH', '/api/projects/mobile-kb', { name: 'x' }, W)).status, 404);
 });
 
-test('非法数据会被拒绝并给出中文原因', async () => {
-  const r = await call('POST', '/api/projects/cs-platform-2/updates', { date: '10/28', title: 'x' }, W);
-  assert.equal(r.status, 400);
-  assert.match(r.data.error, /YYYY-MM-DD/);
-  const bad = await call('PATCH', '/api/projects/cs-platform-2/info', { start: '2026-12-01', end: '2026-11-01' }, W);
-  assert.equal(bad.status, 400);
-  assert.match(bad.data.error, /晚于/);
+test('导出的 YAML / JSON 再导入，得到同一个项目', () => {
+  for (const p of store.list()) {
+    const strip = (x) => ({ ...x, id: '', items: x.items.map((it) => ({ ...it, id: '' })) });
+    const sorted = { ...p, items: p.items.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)) };
+    assert.deepEqual(strip(normalizeProject(parseText(toYaml(p)))), strip(sorted));
+    assert.deepEqual(strip(normalizeProject(parseText(toJson(p)))), strip(sorted));
+  }
+  const tricky = normalizeProject({ name: 'a: b # c', start: '2026-01-01', end: '2026-02-01', goal: 'true', goal_detail: '第一行\n第二行', items: [{ date: '2026-01-10', title: '- 横杠开头', text: '"引号"' }] });
+  const back = normalizeProject(YAML.parse(toYaml(tricky)));
+  assert.equal(back.name, 'a: b # c');
+  assert.equal(back.goal, 'true');
+  assert.equal(back.goal_detail, '第一行\n第二行');
+  assert.equal(back.items[0].title, '- 横杠开头');
 });
 
-test('YAML 导入新建项目，导出再导入保持一致', async () => {
-  const yaml = `version: 1
-project:
-  id: yaml-demo
-  name: YAML 项目
-  start: "2026-11-01"
-  end: "2027-01-31"
-milestones:
-  - title: 立项
-    planned_date: "2026-11-01"
-updates: []
-`;
-  const c = await call('POST', '/api/projects', { text: yaml }, W);
-  assert.equal(c.status, 201);
-  assert.equal(c.data.project.id, 'yaml-demo');
-  assert.equal(c.data.milestones[0].id, 'm1');
-  assert.equal(c.data.milestones[0].status, 'planned');
-
-  const exp = await call('GET', '/api/projects/yaml-demo/export?format=yaml');
-  assert.equal(exp.status, 200);
-  const re = await call('PUT', '/api/projects/yaml-demo', { text: exp.data }, W);
-  assert.equal(re.status, 200);
-  assert.deepEqual(re.data, store.get('projects', 'yaml-demo'));
-});
-
-test('表单新建项目，成员和文档的增改删', async () => {
-  const p = await call('POST', '/api/projects', { name: '新项目', owner: '陈思', line: '客服', start: '2026-11-01', end: '2026-12-31', goal: '一句话目标' }, W);
-  assert.equal(p.status, 201);
-  assert.equal(store.list('projects')[0].project.id, p.data.project.id, '新项目排在最前');
-
-  const m = await call('POST', '/api/members', { name: '新人', group: '研发', skills: ['Go', ''] }, W);
-  assert.deepEqual(m.data.skills, ['Go']);
-  assert.equal((await call('PUT', `/api/members/${m.data.id}`, { ...m.data, city: '上海' }, W)).data.city, '上海');
-  assert.equal((await call('DELETE', `/api/members/${m.data.id}`, undefined, W)).status, 200);
-
-  const d = await call('POST', '/api/docs', { title: '新文档', url: 'https://x.com' }, W);
-  assert.match(d.data.updated, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal((await call('POST', '/api/docs', { title: ' ' }, W)).status, 400);
+test('团队名称可以修改', async () => {
+  assert.equal((await call('PUT', '/api/settings', { teamName: '  ' }, W)).status, 400);
+  const r = await call('PUT', '/api/settings', { teamName: '智能客服团队' }, W);
+  assert.equal(r.data.teamName, '智能客服团队');
+  assert.equal((await call('GET', '/api/bootstrap')).data.settings.teamName, '智能客服团队');
 });

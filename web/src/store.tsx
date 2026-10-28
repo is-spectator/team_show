@@ -1,194 +1,120 @@
-// 全站数据：启动时拉一次 /api/bootstrap，每次写操作成功后重新拉取，保证所有页面看到同一份最新数据。
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, ApiError, getPassword, setPassword } from './api';
-import type { Bootstrap } from './types';
-import { Modal } from './components/ui';
+import type { Item, Project, ProjectInfo, Settings } from './types';
 
-const ME_KEY = 'team-show:me';
-
-interface Ctx {
-  data: Bootstrap;
-  reload: () => Promise<void>;
-  /** 执行写操作：需要密码时先弹窗；成功后刷新数据并提示。返回 false 表示没有执行成功。 */
-  mutate: <T>(fn: () => Promise<T>, okText?: string) => Promise<T | false>;
-  me: string;
-  setMe: (name: string) => void;
-  unlocked: boolean;
+interface Data {
+  settings: Settings;
+  projects: Project[];
+  authRequired: boolean;
+  /** 没设编辑密码，或者已经输入过密码 */
+  canEdit: boolean;
+  unlock: (pw: string) => Promise<void>;
   lock: () => void;
-  requestUnlock: () => Promise<boolean>;
-  toast: (text: string, kind?: 'ok' | 'err') => void;
+  saveSettings: (s: Settings) => Promise<void>;
+  importProject: (text: string) => Promise<Project>;
+  patchProject: (id: string, info: Partial<ProjectInfo>) => Promise<Project>;
+  deleteProject: (id: string) => Promise<void>;
+  addItem: (pid: string, item: Omit<Item, 'id'>) => Promise<Item>;
+  saveItem: (pid: string, item: Item) => Promise<Item>;
+  deleteItem: (pid: string, id: string) => Promise<void>;
 }
 
-const DataCtx = createContext<Ctx | null>(null);
+const Ctx = createContext<Data | null>(null);
 
-export function useData(): Ctx {
-  const c = useContext(DataCtx);
-  if (!c) throw new Error('useData 需要在 DataProvider 里使用');
-  return c;
-}
-
-function readMe() {
-  try {
-    return localStorage.getItem(ME_KEY) || '';
-  } catch {
-    return '';
-  }
+export function useData() {
+  const d = useContext(Ctx);
+  if (!d) throw new Error('useData 需要在 DataProvider 里面');
+  return d;
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Bootstrap | null>(null);
-  const [loadErr, setLoadErr] = useState('');
-  const [me, setMeState] = useState(readMe);
-  const [hasPw, setHasPw] = useState(() => !!getPassword());
-  const [tip, setTip] = useState<{ text: string; kind: 'ok' | 'err'; n: number } | null>(null);
-  const [askPw, setAskPw] = useState(false);
-  const pwResolve = useRef<((ok: boolean) => void) | null>(null);
+  const [settings, setSettings] = useState<Settings>({ teamName: '' });
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [unlocked, setUnlocked] = useState(!!getPassword());
+  const [loadError, setLoadError] = useState('');
 
-  const reload = useCallback(async () => {
-    try {
-      setData(await api.bootstrap());
-      setLoadErr('');
-    } catch (e) {
-      setLoadErr((e as Error).message);
+  const load = useCallback(() => {
+    setLoadError('');
+    api.bootstrap().then(
+      (b) => {
+        setSettings(b.settings);
+        setAuthRequired(b.authRequired);
+        setProjects(b.projects);
+      },
+      (e: Error) => setLoadError(e.message)
+    );
+  }, []);
+  useEffect(load, [load]);
+
+  useEffect(() => {
+    document.title = settings.teamName ? settings.teamName + ' · 项目进展' : '项目进展';
+  }, [settings.teamName]);
+
+  const replace = useCallback((p: Project) => setProjects((list) => (list || []).map((x) => (x.id === p.id ? p : x))), []);
+
+  // 密码在别处被改了，本地存的旧密码会被拒绝：清掉，回到只读。
+  const guard = useCallback(<T,>(pr: Promise<T>) => pr.catch((e) => {
+    if (e instanceof ApiError && e.status === 401) {
+      setPassword('');
+      setUnlocked(false);
+      throw new ApiError(401, '编辑密码已失效，请重新输入');
     }
-  }, []);
+    throw e;
+  }), []);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  const toast = useCallback((text: string, kind: 'ok' | 'err' = 'ok') => {
-    setTip({ text, kind, n: Date.now() });
-  }, []);
-
-  useEffect(() => {
-    if (!tip) return;
-    const t = setTimeout(() => setTip(null), tip.kind === 'err' ? 5000 : 2500);
-    return () => clearTimeout(t);
-  }, [tip]);
-
-  const requestUnlock = useCallback(() => {
-    setAskPw(true);
-    return new Promise<boolean>((resolve) => {
-      pwResolve.current = resolve;
-    });
-  }, []);
-
-  const unlocked = !data?.authRequired || hasPw;
-
-  const mutate = useCallback(
-    async <T,>(fn: () => Promise<T>, okText?: string): Promise<T | false> => {
-      if (data?.authRequired && !getPassword() && !(await requestUnlock())) return false;
-      try {
-        const r = await fn();
-        await reload();
-        if (okText) toast(okText);
-        return r;
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 401) {
-          setPassword('');
-          setHasPw(false);
-          if (await requestUnlock()) return mutate(fn, okText);
-          return false;
-        }
-        toast((e as Error).message, 'err');
-        return false;
-      }
+  const value = useMemo<Data | null>(() => projects && {
+    settings,
+    projects,
+    authRequired,
+    canEdit: !authRequired || unlocked,
+    unlock: async (pw) => {
+      await api.login(pw);
+      setPassword(pw);
+      setUnlocked(true);
     },
-    [data?.authRequired, reload, requestUnlock, toast]
-  );
-
-  const setMe = (name: string) => {
-    setMeState(name);
-    try {
-      localStorage.setItem(ME_KEY, name);
-    } catch {
-      /* 忽略 */
+    lock: () => {
+      setPassword('');
+      setUnlocked(false);
+    },
+    saveSettings: async (s) => setSettings(await guard(api.saveSettings(s))),
+    importProject: async (text) => {
+      const p = await guard(api.importProject(text));
+      setProjects((list) => [p, ...(list || [])]);
+      return p;
+    },
+    patchProject: async (id, info) => {
+      const p = await guard(api.patchProject(id, info));
+      replace(p);
+      return p;
+    },
+    deleteProject: async (id) => {
+      await guard(api.deleteProject(id));
+      setProjects((list) => (list || []).filter((x) => x.id !== id));
+    },
+    addItem: async (pid, item) => {
+      const r = await guard(api.addItem(pid, item));
+      replace(r.project);
+      return r.item;
+    },
+    saveItem: async (pid, item) => {
+      const r = await guard(api.saveItem(pid, item));
+      replace(r.project);
+      return r.item;
+    },
+    deleteItem: async (pid, id) => {
+      replace((await guard(api.deleteItem(pid, id))).project);
     }
-  };
+  }, [settings, projects, authRequired, unlocked, guard, replace]);
 
-  const lock = () => {
-    setPassword('');
-    setHasPw(false);
-    toast('已退出编辑');
-  };
-
-  if (!data) {
+  if (loadError) {
     return (
       <div className="boot">
-        {loadErr ? (
-          <div className="pn" style={{ padding: 24, maxWidth: 420 }}>
-            <h2 style={{ margin: 0, fontSize: 16 }}>加载失败</h2>
-            <p className="muted">{loadErr}</p>
-            <button className="b p" onClick={reload}>重试</button>
-          </div>
-        ) : (
-          <span className="muted">加载中…</span>
-        )}
+        <p>数据加载失败：{loadError}</p>
+        <button type="button" className="btn" onClick={load}>重试</button>
       </div>
     );
   }
-
-  return (
-    <DataCtx.Provider value={{ data, reload, mutate, me, setMe, unlocked, lock, requestUnlock, toast }}>
-      {children}
-      {askPw && (
-        <PasswordModal
-          onDone={(ok) => {
-            setAskPw(false);
-            if (ok) {
-              setHasPw(true);
-              toast('已进入编辑模式');
-            }
-            pwResolve.current?.(ok);
-            pwResolve.current = null;
-          }}
-        />
-      )}
-      {tip && (
-        <div key={tip.n} className={'toast' + (tip.kind === 'err' ? ' err' : '')} role={tip.kind === 'err' ? 'alert' : 'status'}>
-          {tip.text}
-        </div>
-      )}
-    </DataCtx.Provider>
-  );
-}
-
-function PasswordModal({ onDone }: { onDone: (ok: boolean) => void }) {
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.login(pw);
-      setPassword(pw);
-      onDone(true);
-    } catch (ex) {
-      setErr((ex as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Modal title="输入编辑密码" onClose={() => onDone(false)} width={400}>
-      <form onSubmit={submit}>
-        <div className="mbody">
-          <p className="muted" style={{ marginTop: 0, lineHeight: 1.6 }}>
-            浏览不需要密码。修改数据前需要输入团队的编辑密码，输入一次后这台电脑会记住。
-          </p>
-          <label className="fl">
-            编辑密码
-            <input type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} />
-          </label>
-          {err && <div className="alert">{err}</div>}
-        </div>
-        <div className="mfoot">
-          <button type="button" className="b" onClick={() => onDone(false)}>取消</button>
-          <button type="submit" className="b p" disabled={busy || !pw}>确定</button>
-        </div>
-      </form>
-    </Modal>
-  );
+  if (!value) return <div className="boot" role="status">加载中…</div>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
