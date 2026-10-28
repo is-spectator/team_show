@@ -42,7 +42,8 @@ export function Home() {
   const nav = useNavigate();
   const now = today();
   const n = (k: Filter) => projects.filter((p) => match(p, k)).length;
-  const shown = projects.filter((p) => match(p, f));
+  // 已交付的排在后面，其余保持原来的顺序
+  const shown = projects.filter((p) => match(p, f)).sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
 
   const summary = projects.length
     ? `目前有 ${n('active')} 个项目在推进，其中 ${n('active') - n('attention')} 个按计划进行，${n('attention')} 个需要关注；另有 ${n('done')} 个已经交付。`
